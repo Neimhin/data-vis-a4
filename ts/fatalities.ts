@@ -909,6 +909,7 @@ function main() {
 
     
     function dragStarted(event, d) {
+      console.log('drag started');
       global.scrubber.click_diff = event.x - Number(scrubber.attr('x'))
       global.scrubber.dragging = true;
     }
@@ -1216,6 +1217,19 @@ function main() {
         }
     }
     const svg_group_node = svg.node();
+    const foreignObject_1 = svg.append("foreignObject")
+    const div_1 = foreignObject_1.append("xhtml:div")
+        .classed("bin-tooltip",true)
+        .style("color", "white")
+        .style("text-align", "center")
+        .style("font-size", "10px");
+    const foreignObject_2 = svg.append("foreignObject")
+    const div_2 = foreignObject_2.append("xhtml:div")
+        .classed("bin-tooltip",true)
+        .style("color", "white")
+        .style("text-align", "center")
+        .style("font-size", "10px");
+
     function addBinText(bin, isIsraeli) {
         const tooltipWidth = 60;
         const tooltipHeight = 30;
@@ -1225,28 +1239,21 @@ function main() {
                                     : histogram_center - rect_height(bin.length);
 
 
-        const rectXPosition = xPosition - tooltipWidth / 2;
+        const rectXPosition = xPosition + 5;
         const rectYPosition = yPosition - tooltipHeight / 2;
+        const fo = isIsraeli ? foreignObject_1 : foreignObject_2;
+        fo?.attr("x", rectXPosition)
+            .attr("y", rectYPosition)
+            .attr("width", tooltipWidth)
+            .attr("height",tooltipHeight)
 
-        const foreignObject = svg.append("foreignObject")
-        .attr("x", rectXPosition)
-        .attr("y", rectYPosition)
-        .attr("width", tooltipWidth)
-        .attr("height",tooltipHeight)
-
-        const div = foreignObject.append("xhtml:div")
-            .classed("bin-tooltip",true)
-            .style("color", "white")
-            .style("text-align", "center")
-            .style("font-size", "10px");
-
-        div.html(bin.length);
+        isIsraeli ? div_1.html(bin.length) : div_2.html(bin.length);
     }
 
     svg_root.on("mousemove", function(event, data) {
         const mouse_x = d3.pointer(event, svg_group_node)[0];
         const bins = px_to_bin[Math.floor(mouse_x)];
-        svg.selectAll(".bin-tooltip").remove();
+        // svg.selectAll(".bin-tooltip").remove();
 
         if (hovered_palestinian_bin) {
             hovered_palestinian_bin.classed("hoveredBin", false);
@@ -1273,7 +1280,7 @@ function main() {
             hovered_israeli_bin.classed("hoveredBin", false);
         }
         // Remove text elements
-        svg.selectAll(".bin-tooltip").remove();
+        //svg.selectAll(".bin-tooltip").remove();
         tooltip.style("opacity",0)
     });
 
