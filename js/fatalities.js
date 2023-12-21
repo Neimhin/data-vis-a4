@@ -2,9 +2,20 @@ import './d3.js';
 import * as pure from "./pure.js";
 import { DynamicPieChart } from "./DynamicPieChart.js";
 import { Slider } from './Slider.js';
+function getBinSizeParam() {
+    const urlParams = new URLSearchParams(new URL(window.location).search);
+    const binSizeParam = urlParams.get('bin_size');
+    if (binSizeParam !== null) {
+        const binSize = parseInt(binSizeParam, 10);
+        if (!isNaN(binSize)) {
+            return binSize;
+        }
+    }
+    return 21;
+}
 const global = {
-    debug: true,
-    test: true,
+    debug: false,
+    test: false,
     scrubber: {
         dragging: false,
         paused: false,
@@ -486,33 +497,6 @@ function main() {
     const westBankScale = d3.scaleLinear()
         .domain([0, 1])
         .range([2 * scatter_region_width, 3 * scatter_region_width - gutter_width]);
-    const regionNames = ["Gaza Strip", "West Bank", "Israel"];
-    const regionScales = [gazaScale, westBankScale, israelScale];
-    const highlightRects = [];
-    regionNames.forEach((region, index) => {
-        const scale = regionScales[index];
-        const xPosition = scale(0.5);
-        svg.append("text")
-            .attr("x", xPosition)
-            .attr("y", scatterPlotArea.y + scatterPlotArea.height + 20) // Position below the scatter plot
-            .attr("text-anchor", "middle")
-            .attr("fill", "white")
-            .text(region);
-        highlightRects[index] = svg_root.append("rect")
-            .attr("transform", `translate(${margin.left} ${margin.top})`)
-            .attr("x", scale(0))
-            .attr("y", scatterPlotArea.y + scatterPlotArea.height + 3)
-            .attr("width", scatter_region_width - gutter_width)
-            .attr("height", 20)
-            .style("fill", "white")
-            .style("opacity", 0.1)
-            .on("mouseover", function () {
-            d3.select(this).style("opacity", 0.3);
-        })
-            .on("mouseout", function () {
-            d3.select(this).style("opacity", 0.1);
-        });
-    });
     const tooltip = svg.append("foreignObject")
         .attr("class", "tooltip")
         .attr("width", scatterPlotArea.width)
@@ -614,7 +598,6 @@ function main() {
             d;
         });
     }
-    // console.log(global.lazy.districts);
     const district_rects = svg.selectAll(".geo-bounds")
         .data(global.lazy.districts)
         .enter()
@@ -653,7 +636,6 @@ function main() {
     const demographicColors = d3.scaleOrdinal()
         .domain(["palestinian man", "palestinian woman", "palestinian minor", "israeli man", "israeli woman", "israeli minor"])
         .range(["#6C8CA1", "#035E7B", "#21A179", "#D1A368", "#C8758F", "#E59500"]); // More saturated colors
-    // Perpetrator Color Palette
     const perpetratorColors = d3.scaleOrdinal()
         .domain(["israeli civilians", "palestinian civilians", "israeli security forces"])
         .range(["#F5F749", "#F24236", "#2E86AB"]); // Enhanced contrast colors
@@ -674,12 +656,12 @@ function main() {
         .attr('height', global.scrubber.height)
         .attr('opacity', 0.3)
         .attr('stroke', 'white')
-        .call(d3.drag() // Apply drag behavior
+        .call(d3.drag()
         .on('start', dragStarted)
         .on('drag', dragging)
         .on('end', dragEnded));
-    const lineLength = -10; // Length of the lines
-    const scrubberY = histogram_center; // Y-coordinate for the scrubber lines
+    const lineLength = -10;
+    const scrubberY = histogram_center;
     const scrubber_line_start = scrubber_group.append('line')
         .attr('class', 'scrubber-start-line')
         .attr('x1', 0)
@@ -743,7 +725,6 @@ function main() {
         scrubber_end_text.text(dateFormat(scrub_data_ms_from_x(x_end)));
     }
     global.scrubber.set_width(global.scrubber.width);
-    //slider.on_drag(global.scrubber.width);
     function refresh_scatter() {
         console.log("refreshing scatter");
         svg.selectAll(".fatality").remove();
@@ -753,7 +734,6 @@ function main() {
     }
     function dragStarted(event, d) {
         global.scrubber.click_diff = event.x - Number(scrubber.attr('x'));
-        // Handle the start of the drag event
         global.scrubber.dragging = true;
     }
     function calc_intervals_from_elapsed_real_ms() {
@@ -937,7 +917,7 @@ function main() {
         return ((dividend % divisor) + divisor) % divisor;
     }
     d3.interval(histogram_tick, frames_per_ms);
-    const thresholds = create_thresholds(dateRange[0], dateRange[1], 21);
+    const thresholds = create_thresholds(dateRange[0], dateRange[1], getBinSizeParam());
     const histogram = d3.bin()
         .value(d => d.parsed_date)
         .domain(x.domain())
@@ -977,49 +957,100 @@ function main() {
         .attr("height", d => rect_height(d.length))
         .style("fill", PALESTINIAN_RED)
         .each(function (d) { d.element = this; });
-    // let hovered_palestinian_bin = undefined;
-    // let hovered_israeli_bin = undefined;
-    // // optimization to find highlighted bin faster
-    // const px_to_bin = new Array(Math.ceil(histogram_width));
-    // for(let bin_idx = 0; bin_idx < israeli_bins.length; bin_idx++) {
-    //     const bin_i = israeli_bins[bin_idx];
-    //     const bin_p = palestinian_bins[bin_idx];
-    //     const low = x(bin_i.x0);
-    //     const high = x(bin_i.x1);
-    //     let px = Math.ceil(low);
-    //     px_to_bin[px] = [bin_i,bin_p];
-    //     while(px <= high) {
-    //         console.count('px_assign_2');
-    //         px_to_bin[px] = [bin_i,bin_p];
-    //         px++;
-    //     }
-    // }
-    // const svg_group_node = svg.node();
-    // svg_root.on("mousemove", function(event, data) {
-    //     const mouse_x = d3.pointer(event,svg_group_node)[0];
-    //     const bins = px_to_bin[Math.floor(mouse_x)];
-    //     if(hovered_palestinian_bin) {
-    //         hovered_palestinian_bin.style("fill", PALESTINIAN_RED);
-    //     }
-    //     if(hovered_israeli_bin) {
-    //         hovered_israeli_bin.style("fill", ISRAELI_BLUE);
-    //     }
-    //     if(bins) {
-    //         hovered_israeli_bin = d3.select(bins[0].element)
-    //         hovered_israeli_bin.style("fill", ISRAELI_BLUE_HIGHLIGHT)
-    //         hovered_palestinian_bin = d3.select(bins[1].element)
-    //         hovered_palestinian_bin.style("fill", PALESTINIAN_RED_HIGHLIGHT)
-    //     }
-    // });
-    // // remove highlight when mouseout of whole svg
-    // svg_root.on("mouseout", function(event) {
-    //     if(hovered_palestinian_bin) {
-    //         hovered_palestinian_bin.style("fill", PALESTINIAN_RED);
-    //     }
-    //     if(hovered_israeli_bin) {
-    //         hovered_israeli_bin.style("fill", ISRAELI_BLUE);
-    //     }
-    // })
+    const regionNames = ["Gaza Strip", "West Bank", "Israel"];
+    const regionScales = [gazaScale, westBankScale, israelScale];
+    const highlightRects = [];
+    regionNames.forEach((region, index) => {
+        const scale = regionScales[index];
+        const xPosition = scale(0.5);
+        svg.append("text")
+            .attr("x", xPosition)
+            .attr("y", scatterPlotArea.y + scatterPlotArea.height + 20)
+            .attr("text-anchor", "middle")
+            .attr("fill", "white")
+            .text(region);
+        highlightRects[index] = svg_root.append("rect")
+            .attr("transform", `translate(${margin.left} ${margin.top})`)
+            .attr("x", scale(0))
+            .attr("y", scatterPlotArea.y + scatterPlotArea.height + 3)
+            .attr("width", scatter_region_width - gutter_width)
+            .attr("height", 20)
+            .style("fill", "white")
+            .style("opacity", 0.1)
+            .on("mouseover", function () {
+            d3.select(this).style("opacity", 0.3);
+        })
+            .on("mouseout", function () {
+            d3.select(this).style("opacity", 0.1);
+        });
+    });
+    let hovered_palestinian_bin = undefined;
+    let hovered_israeli_bin = undefined;
+    // optimization to find highlighted bin faster
+    const px_to_bin = new Array(Math.ceil(histogram_width));
+    for (let bin_idx = 0; bin_idx < israeli_bins.length; bin_idx++) {
+        const bin_i = israeli_bins[bin_idx];
+        const bin_p = palestinian_bins[bin_idx];
+        const low = x(bin_i.x0);
+        const high = x(bin_i.x1);
+        let px = Math.ceil(low);
+        px_to_bin[px] = [bin_i, bin_p];
+        while (px <= high) {
+            console.count('px_assign_2');
+            px_to_bin[px] = [bin_i, bin_p];
+            px++;
+        }
+    }
+    const svg_group_node = svg.node();
+    function addBinText(bin, isIsraeli) {
+        const xPosition = x(bin.x0) + (x(bin.x1) - x(bin.x0)) / 2;
+        const yPosition = isIsraeli ? histogram_center + global.scrubber.height + rect_height(bin.length) + 15
+            : histogram_center - rect_height(bin.length) - 5;
+        const tooltipWidth = 60;
+        const tooltipHeight = 30;
+        const rectXPosition = xPosition - tooltipWidth / 2;
+        const rectYPosition = yPosition - tooltipHeight / 2;
+        const foreignObject = svg.append("foreignObject")
+            .attr("x", rectXPosition)
+            .attr("y", rectYPosition)
+            .attr("width", tooltipWidth)
+            .attr("height", tooltipHeight);
+        const div = foreignObject.append("xhtml:div")
+            .classed("bin-tooltip", true)
+            .style("color", "white")
+            .style("text-align", "center")
+            .style("font-size", "10px");
+        div.html(bin.length);
+    }
+    svg_root.on("mousemove", function (event, data) {
+        const mouse_x = d3.pointer(event, svg_group_node)[0];
+        const bins = px_to_bin[Math.floor(mouse_x)];
+        svg.selectAll(".bin-tooltip").remove();
+        if (hovered_palestinian_bin) {
+            hovered_palestinian_bin.classed("hoveredBin", false);
+        }
+        if (hovered_israeli_bin) {
+            hovered_israeli_bin.classed("hoveredBin", false);
+        }
+        if (bins) {
+            hovered_israeli_bin = d3.select(bins[0].element);
+            hovered_israeli_bin.classed("hoveredBin", true);
+            hovered_palestinian_bin = d3.select(bins[1].element);
+            hovered_palestinian_bin.classed("hoveredBin", true);
+            addBinText(bins[0], true); // true for Israeli bin
+            addBinText(bins[1], false); // false for Palestinian bin
+        }
+    });
+    svg_root.on("mouseout", function (event) {
+        if (hovered_palestinian_bin) {
+            hovered_palestinian_bin.classed("hoveredBin", false);
+        }
+        if (hovered_israeli_bin) {
+            hovered_israeli_bin.classed("hoveredBin", false);
+        }
+        // Remove text elements
+        svg.selectAll(".bin-tooltip").remove();
+    });
 }
 fetch('/json/fatalities.json')
     .then(on_response)
