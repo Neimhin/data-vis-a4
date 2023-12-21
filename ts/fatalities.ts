@@ -755,7 +755,7 @@ function main() {
                                 <strong>Notes:</strong> ${d.notes}`);
             })
             .on("mouseout", function (event, d) {
-                d
+                tooltip.style("opacity",0);
             });
     }
 
@@ -1217,12 +1217,14 @@ function main() {
     }
     const svg_group_node = svg.node();
     function addBinText(bin, isIsraeli) {
-        const xPosition = x(bin.x0) + (x(bin.x1) - x(bin.x0)) / 2;
-        const yPosition = isIsraeli ? histogram_center + global.scrubber.height + rect_height(bin.length) + 15 
-                                    : histogram_center - rect_height(bin.length) - 5;
-
         const tooltipWidth = 60;
         const tooltipHeight = 30;
+
+        const xPosition = d3.mean([x(bin.x1),x(bin.x0)]);
+        const yPosition = isIsraeli ? histogram_center + 28 + rect_height(bin.length)
+                                    : histogram_center - rect_height(bin.length);
+
+
         const rectXPosition = xPosition - tooltipWidth / 2;
         const rectYPosition = yPosition - tooltipHeight / 2;
 
@@ -1272,6 +1274,7 @@ function main() {
         }
         // Remove text elements
         svg.selectAll(".bin-tooltip").remove();
+        tooltip.style("opacity",0)
     });
 
 }
